@@ -1,0 +1,197 @@
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
+#include <GL/glut.h>
+#endif
+
+#include <cmath>
+#include <iostream>
+using namespace std;
+
+
+
+// Window size in pixels
+const int WINDOW_W = 640;
+const int WINDOW_H = 480;
+
+// Default drawing center 
+int centerX = 320;
+int centerY = 240;
+
+
+int numCircles      = 10;  // how many concentric circles
+int startRadius     = 20;  // radius of innermost circle
+int radiusStep      = 15;  // radius increases each next circle
+int startThickness  = 2;   // thickness of innermost circle
+int thicknessStep   = 1;   // thickness increases each next circle
+
+
+float r1 = 1.0f, g1 = 0.0f, b1 = 0.0f; // red
+float r2 = 0.0f, g2 = 0.0f, b2 = 1.0f; // blue
+
+
+void putPixel(int x, int y)
+{
+    glVertex2i(x, y);
+}
+
+void plotCircleOctants(int cx, int cy, int x, int y)
+{
+    putPixel(cx + x, cy + y); // ( +x, +y )
+    putPixel(cx - x, cy + y); // ( -x, +y )
+    putPixel(cx + x, cy - y); // ( +x, -y )
+    putPixel(cx - x, cy - y); // ( -x, -y )
+
+    putPixel(cx + y, cy + x); // ( +y, +x )
+    putPixel(cx - y, cy + x); // ( -y, +x )
+    putPixel(cx + y, cy - x); // ( +y, -x )
+    putPixel(cx - y, cy - x); // ( -y, -x )
+}
+
+
+void drawThickCircle(int cx, int cy, int R, int thickness)
+{
+    // Loop for each layer of thickness
+    for (int t = 0; t < thickness; t++)
+    {
+        int r = R + t;      
+        
+        int x = 0;
+        int y = r;
+        int d = 1 - r;      
+
+        // We'll plot all points for this radius as GL_POINTS
+        glBegin(GL_POINTS);
+        while (y >= x)
+        {
+            // Draw the 8 symmetric points
+            plotCircleOctants(cx, cy, x, y);
+
+            // Update decision parameter and coordinates
+            if (d < 0)
+            {
+                // Choose East pixel (move horizontally)
+                // d_new = d + 2*x + 3
+                d += 2 * x + 3;
+            }
+            else
+            {
+                // Choose South-East pixel (move diagonal)
+                // d_new = d + 2*(x - y) + 5
+                d += 2 * (x - y) + 5;
+                y--;
+            }
+            x++;
+        }
+        glEnd();
+    }
+}
+
+
+float lerp(float startC, float endC, float t)
+{
+    return startC + t * (endC - startC);
+}
+
+
+void drawConcentricGradient()
+{
+    for (int i = 0; i < numCircles; i++)
+    {
+        // Radius and thickness for this circle index
+        int R     = startRadius    + i * radiusStep;
+        int thick = startThickness + i * thicknessStep;
+
+        
+        float t = 0.0f;
+        if (numCircles > 1)
+            t = (float)i / (float)(numCircles - 1);
+
+        // Interpolate color for this ring
+        float rr = lerp(r1, r2, t);
+        float gg = lerp(g1, g2, t);
+        float bb = lerp(b1, b2, t);
+
+        // Set current drawing color
+        glColor3f(rr, gg, bb);
+
+        // Draw 1 thick circle with that color
+        drawThickCircle(centerX, centerY, R, thick);
+    }
+}
+
+
+void display()
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    drawConcentricGradient();
+
+    glFlush();
+}
+
+
+void initGL()
+{
+    // Set background to white
+    glClearColor(1.0, 1.0, 1.0, 0.0);
+
+    // How big each plotted pixel will look
+    glPointSize(2.0);
+
+    // Switch to projection matrix and set it
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluOrtho2D(0.0, WINDOW_W, 0.0, WINDOW_H);
+}
+
+
+int main(int argc, char** argv)
+{
+    // Collect runtime parameters from user
+    cout << "Enter centerX centerY (e.g. 320 240): ";
+    cin >> centerX >> centerY;
+
+    cout << "Enter number of circles (e.g. 10): ";
+    cin >> numCircles;
+
+    cout << "Enter startRadius and radiusStep (e.g. 20 15): ";
+    cin >> startRadius >> radiusStep;
+
+    cout << "Enter startThickness and thicknessStep (e.g. 2 1): ";
+    cin >> startThickness >> thicknessStep;
+
+    cout << "Enter inner color RGB (0..1 each), e.g. 1 0 0 for red: ";
+    cin >> r1 >> g1 >> b1;
+
+    cout << "Enter outer color RGB (0..1 each), e.g. 0 0 1 for blue: ";
+    cin >> r2 >> g2 >> b2;
+
+    // Echo back the config so the user sees what will be drawn
+    cout << "\nUsing:\n";
+    cout << " center      = (" << centerX << ", " << centerY << ")\n";
+    cout << " numCircles  = " << numCircles << "\n";
+    cout << " startRadius = " << startRadius
+         << ", radiusStep = " << radiusStep << "\n";
+    cout << " startThick  = " << startThickness
+         << ", thickStep  = " << thicknessStep << "\n";
+    cout << " innerColor  = (" << r1 << ", " << g1 << ", " << b1 << ")\n";
+    cout << " outerColor  = (" << r2 << ", " << g2 << ", " << b2 << ")\n";
+    cout << "\nOpening window...\n";
+
+   
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);           
+    glutInitWindowSize(WINDOW_W, WINDOW_H);                
+    glutInitWindowPosition(100, 100);                      
+    glutCreateWindow("Concentric Circles (User Input)");   
+
+    initGL();                       
+    glutDisplayFunc(display);       
+
+    
+    glutMainLoop();
+
+    return 0;
+}
