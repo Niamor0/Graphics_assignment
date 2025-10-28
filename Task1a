@@ -1,0 +1,142 @@
+#ifdef __APPLE__
+#include <GLUT/glut.h>
+#else
+#include <GL/glut.h>
+#endif
+
+#include <cstdlib>
+#include <cmath>
+#include <iostream>
+using namespace std;
+
+// --------- SETTINGS ---------
+const int WIN_W = 640;
+const int WIN_H = 480;
+
+// You can change these test coordinates or even make them user input.
+int X1_USER = 100;
+int Y1_USER = 100;
+int X2_USER = 500;
+int Y2_USER = 300;
+
+// Draw a single pixel
+void putPixel(int x, int y)
+{
+    glBegin(GL_POINTS);
+    glVertex2i(x, y);
+    glEnd();
+}
+
+// Generalized Bresenham that handles all slopes and directions
+void bresenhamLine(int x1, int y1, int x2, int y2)
+{
+    // Step 1: calculate deltas
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+
+    // Step 2: decide the direction to step in x and y
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+
+    // Step 3: choose driving axis
+    // If slope magnitude <= 1, we step in x.
+    // If slope magnitude > 1, we step in y (swap the roles).
+    bool steep = dy > dx;
+
+    if (steep)
+    {
+        // Swap x<->y in both points so we always "drive" the larger delta
+        std::swap(x1, y1);
+        std::swap(x2, y2);
+        std::swap(dx, dy);
+        std::swap(sx, sy);
+    }
+
+    // Bresenham error term
+    int err = 2 * dy - dx;
+
+    int x = x1;
+    int y = y1;
+
+    for (int i = 0; i <= dx; i++)
+    {
+        if (steep)
+        {
+            // If we swapped earlier, swap back when plotting
+            putPixel(y, x);
+        }
+        else
+        {
+            putPixel(x, y);
+        }
+
+        // Standard Bresenham update
+        if (err > 0)
+        {
+            y += sy;
+            err -= 2 * dx;
+        }
+
+        x += sx;
+        err += 2 * dy;
+    }
+}
+
+// Display callback
+void display()
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // choose the color of the line (yellowish)
+    glColor3f(1.0f, 1.0f, 0.0f);
+
+    // call Bresenham with your chosen points
+    bresenhamLine(X1_USER, Y1_USER, X2_USER, Y2_USER);
+
+    glFlush();
+}
+
+// Setup projection, background, etc.
+void initGL()
+{
+    glClearColor(0.0, 0.0, 0.0, 1.0); // black background
+    glColor3f(1.0, 1.0, 1.0);         // default draw color (can be overridden)
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    // set up a 2D orthographic projection where (0,0) is bottom-left
+    gluOrtho2D(0, WIN_W, 0, WIN_H);
+
+    glPointSize(2.0f); // make the pixels a bit larger so the line looks solid
+}
+
+int main(int argc, char** argv)
+{
+    // OPTIONAL: read custom points from console
+    // comment this block if you just want to use the defaults above
+    cout << "Enter x1 y1 x2 y2 : ";
+    if (cin >> X1_USER >> Y1_USER >> X2_USER >> Y2_USER)
+    {
+        cout << "Using (" << X1_USER << "," << Y1_USER << ") -> ("
+             << X2_USER << "," << Y2_USER << ")\n";
+    }
+    else
+    {
+        cout << "Invalid input, falling back to defaults.\n";
+        X1_USER = 100; Y1_USER = 100;
+        X2_USER = 500; Y2_USER = 300;
+    }
+
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(WIN_W, WIN_H);
+    glutInitWindowPosition(100, 100);
+    glutCreateWindow("Bresenham Line - All Slopes");
+
+    initGL();
+    glutDisplayFunc(display);
+
+    glutMainLoop();
+    return 0;
+}
